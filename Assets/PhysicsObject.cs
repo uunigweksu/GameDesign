@@ -35,7 +35,6 @@ public class PhysicsObject : MonoBehaviour
 
     void Update()
     {
-        targetVelocity = Vector2.zero;
         ComputeVelocity();
     }
 
@@ -48,6 +47,7 @@ public class PhysicsObject : MonoBehaviour
     {
         velocity += gravityModifier * Physics2D.gravity * Time.deltaTime;
         velocity.x = targetVelocity.x;
+        rb2d.linearVelocity = velocity;
 
         grounded = false;
 

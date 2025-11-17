@@ -1,27 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static UnityEngine.RuleTile.TilingRuleOutput;
+using TMPro;
 
 public class Player : PhysicsObject
 {
+    [Header("Movement")]
     public float maxSpeed = 7;
-    public LayerMask groundLayer;
     public float jumpTakeOffSpeed = 7;
-    public float moveSpeed = 5f;
-    private Rigidbody2D rb;
-    public float jumpForce = 10f;
-    public UnityEngine.Transform groundCheck;
-    public float groundCheckRadius = 0.2f;
+
     private SpriteRenderer spriteRenderer;
     private Animator animator;
-    private bool isGrounded;
-    public float horizontalInput;
-
-    public int maxJumps = 2;
-    private int jumpCount = 0;
-
-    //Vector2 currentPosition = UnityEngine.Transform.position; 
 
     [Header("Lose Condition")]
     public float fallLimit = -10f;
@@ -34,23 +23,24 @@ public class Player : PhysicsObject
     public GameObject winScreen;
     private bool hasWon = false;
 
+    [Header("UI")]
+    public TextMeshProUGUI keyCounterText;
+
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         animator = GetComponent<Animator>();
     }
 
-
-
-    //void LateUpdate()
-    //{
-    //   if (!isGameOver && !hasWon && currentPosition.y < fallLimit)
-    //  {
-    //      Debug.Log("Game Over! Player fell.");
-    //      GameOver();
-    //      isGameOver = true;
-    //  }
-    //}
+    void LateUpdate()
+    {
+        if (!isGameOver && !hasWon && transform.position.y < fallLimit)
+        {
+            Debug.Log("Game Over! Player fell.");
+            GameOver();
+            isGameOver = true;
+        }
+    }
 
     protected override void ComputeVelocity()
     {
@@ -59,7 +49,7 @@ public class Player : PhysicsObject
 
         if (Input.GetButtonDown("Jump") && grounded)
         {
-            StartCoroutine(Jump());
+            velocity.y = jumpTakeOffSpeed;
         }
         else if (Input.GetButtonUp("Jump"))
         {
@@ -70,13 +60,9 @@ public class Player : PhysicsObject
         }
 
         if (move.x > 0.01f)
-        {
             spriteRenderer.flipX = false;
-        }
         else if (move.x < -0.01f)
-        {
             spriteRenderer.flipX = true;
-        }
 
         animator.SetBool("grounded", grounded);
         animator.SetFloat("velocityX", Mathf.Abs(velocity.x) / maxSpeed);
@@ -85,31 +71,29 @@ public class Player : PhysicsObject
         targetVelocity = move * maxSpeed;
     }
 
-    IEnumerator Jump()
-    {
-        yield return new WaitForSeconds(0.1f);
-        velocity.y = jumpTakeOffSpeed;
-    }
-
-    void GameOver()
-    {
-        if (hasWon) return;
-        if (gameOverScreen != null)
-        {
-            gameOverScreen.SetActive(true);
-        }
-        Time.timeScale = 0f;
-    }
-
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.CompareTag("Key"))
         {
-            Destroy(collision.gameObject);
             collectedKeys++;
-            Debug.Log("Key collected: " + collectedKeys + "/" + totalKeys);
+
+            if (keyCounterText != null)
+                keyCounterText.text = collectedKeys + " / " + totalKeys;
+
+            Destroy(collision.gameObject);
+
+            Debug.Log("Gem collected: " + collectedKeys + "/" + totalKeys);
         }
 
+        
+        if (collision.CompareTag("Enemy") && !isGameOver)
+        {
+            Debug.Log("Hit enemy! Game Over.");
+            GameOver();
+            isGameOver = true;
+        }
+
+        
         if (collision.CompareTag("Door"))
         {
             if (collectedKeys >= totalKeys)
@@ -120,72 +104,26 @@ public class Player : PhysicsObject
             {
                 Debug.Log("You need all keys to finish!");
             }
-            if (collision.CompareTag("Enemy"))
-            {
-                Debug.Log("Hit enemy! Game Over.");
-                GameOver();
-                isGameOver = true;
-            }
         }
+    }
+
+    void GameOver()
+    {
+        if (hasWon) return;
+
+        if (gameOverScreen != null)
+            gameOverScreen.SetActive(true);
+
+        Time.timeScale = 0f;
     }
 
     void WinGame()
     {
         hasWon = true;
+
         if (winScreen != null)
-        {
             winScreen.SetActive(true);
-        }
+
         Time.timeScale = 0f;
-    }
-
-    void Start()
-    {
-        rb = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        float moveInput = Input.GetAxis("Horizontal");
-        horizontalInput = moveInput;
-        MovePlayer();
-
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && jumpCount < maxJumps)
-        {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-            jumpCount++;
-        }
-        setAnimationState(moveInput);
-    }
-
-    private void MovePlayer()
-    {
-        float moveInput = Input.GetAxis("Horizontal");
-        rb.velocity = new Vector2(moveInput * moveSpeed, rb.velocity.y);
-    }
-    private void FixedUpdate()
-    {
-        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
-        if (isGrounded)
-    {
-        jumpCount = 0; // Reset jump count when grounded
-    }
-    }
-
-    private void setAnimationState(float moveinput)
-    {
-        if (!isGrounded)
-        {
-            if (moveinput == 0)
-            {
-                animator.Play("Idle");
-            }
-            else
-            {
-                animator.Play("Run_0");
-            }
-        }
     }
 }
